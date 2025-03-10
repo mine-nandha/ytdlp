@@ -29,7 +29,7 @@ async def get_formats(video_url: str):
  
 # Endpoint to get direct video URL for a specific format
 @app.get("/get-url")
-async def get_video_url(video_url: str, format_id: str = none):
+async def get_video_url(video_url: str, format_id: str = None):
     ydl_opts = {"quiet": True, "format": format_id, "noplaylist": True}
     if format_id:
         ydl_opts["format_id"] = format_id
