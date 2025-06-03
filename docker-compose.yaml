@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  ytdlp:
+    build: .
+    container_name: ytdlp_app
+    volumes:
+      - ./downloads:/app/downloads
+    environment:
+      - TZ=Asia/Kolkata
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
