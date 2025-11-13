@@ -9,28 +9,58 @@ def _extract(url, opts):
 async def extract_formats(url: str):
     try:
         info = await run_in_threadpool(
-            _extract, url, {"quiet": True, "noplaylist": True}
+            _extract,
+            url,
+            {"quiet": False, "noplaylist": True}
         )
-    except:
-        raise HTTPException(400, "invalid url")
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"yt-dlp error (formats): {type(e).__name__}: {str(e)}"
+        )
 
     out = []
-    for f in info["formats"]:
+    for f in info.get("formats") or [] :
         out.append({
-            "format_id": f["format_id"],
-            "ext": f["ext"],
+            "format_id": f.get("format_id"),
+            "ext": f.get("ext"),
             "resolution": f.get("resolution"),
+            "filesize": f.get("filesize"),
             "filesize_approx": f.get("filesize_approx"),
             "has_av": f.get("acodec") != "none" and f.get("vcodec") != "none"
         })
-    return {"title": info["title"], "formats": out}
+
+    return {
+        "title": info.get("title"),
+        "formats": out
+    }
 
 async def extract_url(url: str, fmt: str | None):
     opts = {"quiet": True, "noplaylist": True, "format": fmt or "best"}
 
     try:
         info = await run_in_threadpool(_extract, url, opts)
-    except:
-        raise HTTPException(400, "invalid url or unavailable format")
+    except Exception as e:
+        raise HTTPException(400, f"yt-dlp error: {type(e).__name__}: {str(e)}")
 
-    return {"url": info["url"], "title": info["title"], "format": fmt or "best"}
+    direct = info.get("url")
+    if not direct:
+        raise HTTPException(500, "yt-dlp returned no URL")
+
+    # 🟦 If m3u8 — just return unsupported
+    if direct.endswith(".m3u8"):
+        return {
+            "supported": False,
+            "type": "hls",
+            "url": direct,
+            "message": "m3u8/HLS is not supported by this server. Use the link directly."
+        }
+
+    # normal direct link
+    return {
+        "supported": True,
+        "type": "file",
+        "url": direct,
+        "title": info.get("title"),
+        "format": fmt or "best",
+    }
